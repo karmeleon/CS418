@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>CS 414 MP3</title>
+		<script id="frag-lighting-fs" type="x-shader/x-fragment">
+			precision highp float;
+
+		    varying vec2 vTextureCoord;
+		    varying vec3 vTransformedNormal;
+		    varying vec4 vPosition;
+
+		    uniform float uMaterialShininess;
+
+		    uniform bool uShowSpecularHighlights;
+		    uniform bool uUseLighting;
+		    uniform bool uUseTextures;
+		    uniform bool uUseSpheremap;
+
+		    uniform vec3 uAmbientColor;
+
+		    uniform vec3 uPointLightingLocation;
+		    uniform vec3 uPointLightingSpecularColor;
+		    uniform vec3 uPointLightingDiffuseColor;
+
+		    uniform sampler2D uTextureSampler;
+		    uniform sampler2D uSphereSampler;
+
+		    void main(void) {
+		        vec3 lightWeighting;
+		        
+		        vec3 eyeDirection = normalize(-vPosition.xyz);
+		        vec3 lightDirection = normalize(uPointLightingLocation - vPosition.xyz);
+		        vec3 normal = normalize(vTransformedNormal);
+		        vec3 reflectionDirection = reflect(-lightDirection, normal);
+
+		        
+		        if(!uUseLighting) {
+		            lightWeighting = vec3(1.0, 1.0, 1.0);
+		        } else {
+		            float specularLightWeighting = 0.0;
+		            
+		            if(uShowSpecularHighlights) {
+		                specularLightWeighting = pow(max(dot(reflectionDirection, eyeDirection), 0.0), uMaterialShininess);
+		            }
+
+		            float diffuseLightWeighting = max(dot(normal, lightDirection), 0.0);
+		            lightWeighting = uAmbientColor + uPointLightingSpecularColor * specularLightWeighting + uPointLightingDiffuseColor * diffuseLightWeighting;
+		        }
+
+		        vec4 fragmentColor;
+		        if(uUseTextures) {
+		            fragmentColor = texture2D(uTextureSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+		        } else {
+		            fragmentColor = vec4(0.8, 0.0, 0.0, 1.0);
+		        }
+		        if(uUseSpheremap) {
+	                float m = 2.0 * sqrt(reflectionDirection.x * reflectionDirection.x + reflectionDirection.y * reflectionDirection.y + (reflectionDirection.z + 1.0) * (reflectionDirection.z + 1.0));
+	                fragmentColor.xyz *= 0.8;
+		            fragmentColor += 0.2 * texture2D(uSphereSampler, vec2(reflectionDirection.x / m + 0.5, reflectionDirection.y / m + 0.5));
+		        }
+		        gl_FragColor = vec4(fragmentColor.rgb * lightWeighting, fragmentColor.a);
+		    }
+		</script>
+		<script id="frag-lighting-vs" type="x-shader/x-vertex">
+			attribute vec3 aVertexPosition;
+			attribute vec3 aVertexNormal;
+			attribute vec2 aTextureCoord;
+
+			uniform mat4 uMVMatrix;
+			uniform mat4 uPMatrix;
+			uniform mat3 uNMatrix;
+
+			varying vec2 vTextureCoord;
+			varying vec3 vTransformedNormal;
+			varying vec4 vPosition;
+
+			void main(void) {
+				// move model into position
+			    vPosition = uMVMatrix * vec4(aVertexPosition, 1.0);
+			    // project for vertex position
+			    gl_Position = uPMatrix * vPosition;
+			    // copy texture coords over
+			    vTextureCoord = aTextureCoord;
+			    // transform normal
+			    vTransformedNormal = uNMatrix * aVertexNormal;
+			}
+		</script>
+		<style>
+			html, body {
+				margin: 0px;
+				overflow: hidden;
+			}
+
+			#config {
+				position: absolute;
+				top: 10px;
+				left: 20px;
+				font-family: "Comic Sans MS";
+				color: white;
+			}
+		</style>
+		<script src="jquery-2.1.0.min.js"></script>
+		<script src="webgl-utils.js"></script>
+		<script src="gl-matrix-min.js"></script>
+		<script src="webgl_helpers.js"></script>
+		<script src="obj2json.js"></script>
+		<script src="mp3.js"></script>
+	</head>
+	<body onload="startGL();">
+		<canvas id="lighting-canvas" width="800" height="800"></canvas>
+		<br>
+		<div id="config">
+			<p id="fps-counter">FPS:</p>
+			<p id="resolution">0x0</p>
+			<input type="checkbox" id="uselighting" checked>Use lighting<br/>
+			<input type="checkbox" id="usetextures" checked>Use Textures<br/>
+			<input type="checkbox" id="usespheremap" checked>Use Sphere Mapping<br/>
+			<input type="checkbox" id="usespecularity" checked>Specular highlights<br/>
+			<input type="text" id="shininess" value="64.0">Shininess
+			<h3 id="textureloading">Loading texture</h3>
+			<h3 id="sphereloading">Loading spheremap</h3>
+		</div>
+	</body>
+</html>

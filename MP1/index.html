@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>CS 418 SP14 MP1</title>
+		<script id="shader-fs" type="x-shader/x-fragment">
+			//this part is GLSL. WebGL does some things differently from OpenGL, one of which is requiring a basic fragment and vertex shader in order to work.
+
+			//use medium precision--good balance of speed, compatibility, and precision
+			precision mediump float;
+
+			//we pass the color vector to the vertex shader, which then passes it here to the fragment shader.
+			varying vec4 vColor;
+
+			void main(void) {
+				//simply set this fragment's color to the color we got from the vector
+				gl_FragColor = vColor;
+			}
+			//that's it.
+		</script>
+
+		<script id="shader-vs" type="x-shader/x-vertex">
+			//more GLSL! this one just puts the vertex in the correct spot after applying matrix transformations.
+			//pi isn't defined by default.
+			#define M_PI 3.1415926535897932384626433832795
+
+			//the lowest the I should reach
+			#define I_LOW -1.2
+			//the highest the I should reach
+			#define I_HIGH 1.2
+
+			//the largest factor the color will be brightened by
+			#define BRIGHT_FACTOR 1.2
+			//the smallest factor the color will be brightened by
+			#define DARK_FACTOR 0.6
+
+			//attributes can be written to from JS, but not from GLSL
+			attribute vec3 aPosition;
+			uniform vec4 uColor;
+
+			//for animation. I'm doing it in the vertex shader because I'm a dirty tryhard
+			attribute vec3 aPrevOffset;
+			attribute vec3 aTargetOffset;
+			uniform float uProgress;
+
+			//model view matrix
+			uniform mat4 uMVMatrix;
+			//projection matrix
+			uniform mat4 uPMatrix;
+
+			//keep this here to pass to the fragment shader
+			varying vec4 vColor;
+
+			//if 1, color according to z-depth
+			uniform int uDepthColoring;
+
+			void main(void) {
+				//smoothing
+				float smoothProgress = -0.5 * cos(uProgress * M_PI) + 0.5;
+				//dance. mix is such a handy function
+				vec3 animPosition = aPosition + mix(aTargetOffset, aPrevOffset, smoothProgress);
+				//transform
+				gl_Position = uPMatrix * uMVMatrix * vec4(animPosition, 1.0);
+
+				//if it gets a color out of the usable range, we'll use different shading.
+				//kinda hacky and ugly, but hell if I care
+				if(uDepthColoring == 1) {
+					float zPct = (animPosition.z + 0.2) * 2.5;
+					vColor = vec4(zPct, zPct, zPct, 1.0);
+				} else {
+					//darken colors on the bottom, lighten them on the top. mix is so good
+					vColor = uColor * mix(DARK_FACTOR, BRIGHT_FACTOR, (animPosition.y - I_LOW) / (I_HIGH - I_LOW));
+					//need to set alpha to 1.0
+					vColor.a = 1.0;
+				}
+			}
+		</script>
+
+		<!-- Google-made script to handle things like when to redraw a frame. -->
+		<script src="webgl-utils.js"></script>
+		<!-- awesome library to handle matrix operations (glmatrix.net) I know it's not the newest version, but I can't get that one to work >> -->
+		<script src="glMatrix-0.9.5.min.js"></script>
+		<!-- a handy FPS counter I made -->
+		<script src="fps-counter.js"></script>
+		<!-- and of course my MP code -->
+		<script src="mp1.js"></script>
+	</head>
+	<body onload="startGL();">
+		<canvas id="mp1-canvas" style="border: none;" width="500" height="500"></canvas>
+		<br>
+		<p id="fps-counter">FPS:</p>
+		<br>		
+		<input type="checkbox" id="go" checked>Play animation<br>
+		<input type="checkbox" id="wireframe">Draw wireframe<br>
+		<input type="checkbox" id="outline" checked>Draw outline<br>
+		<input type="checkbox" id="mesh" checked>Draw mesh<br>
+		<input type="checkbox" id="zshading">Color based on depth<br>
+		<input type="text" id="radius" value="0.2" type="number">Radius of animation<br>
+		<input type ="text" id="time" value="500" type="number">Time of each movement (ms)<br>
+		<h3>Compatibility</h3>
+		<ul>
+			<li>Chrome: works on all modern desktop and Android versions, automatically antialiased and VSync'd by default.</li>
+			<li>IE: Works on IE11, not antialiased, but VSync'd. Does not work in IE10 or below without third-party plugins.</li>
+			<li>Firefox: works on modern versions, automatically antialiased and VSync'd by default.</li>
+		</ul>
+		<p>I develop on the newest stable version of Chrome on Windows 8.1 x86-64, so that's the only browser it's guaranteed to work on. For more detailed support of WebGL, check out <a href="http://caniuse.com/webgl">this page</a>.</p>
+		<p>Annoyingly, the only browser I could find that supported line widths other than 1 was Chrome for Android. Go figure.</p>
+	</body>
+</html>

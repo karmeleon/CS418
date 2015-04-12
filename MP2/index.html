@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>MP2</title>
+		<script id="shader-fs" type="x-shader/x-fragment">
+			precision mediump float;
+
+			uniform sampler2D uFragTerrainData;
+			uniform sampler2D uRockTexture;
+			uniform sampler2D uSnowTexture;
+
+			uniform int uUseLighting;
+
+			varying vec2 vTextureCoord;
+			varying vec3 vPosition;
+
+			const vec3 lightLocation = vec3(0.0, 60.0, -15.0);
+			const vec3 diffuseColor = vec3(0.8, 0.8, 0.8);
+			const vec3 ambientColor = vec3(0.2, 0.2, 0.2);
+
+			const float sideLength = 25.0;
+			const float dp = 1.0 / 1024.0;
+			const float actualDP = dp * sideLength;
+			const float heightFactor = 6.0;
+
+			float getNearbyHeight(float xOffset, float yOffset) {
+				return heightFactor * texture2D(uFragTerrainData, vec2(vTextureCoord.x + xOffset, vTextureCoord.y + yOffset)).r;
+			}
+
+			vec3 computeNormal() {
+				float dyx = getNearbyHeight(-1.0 * dp, 0.0) - getNearbyHeight(1.0 * dp, 0.0);
+				float dyz = getNearbyHeight(0.0, -1.0 * dp) - getNearbyHeight(0.0, 1.0 * dp);
+				return normalize(vec3(dyx, 0.05, dyz));
+			}
+
+			void main(void) {
+				// pull the color from textures
+				vec4 data = texture2D(uFragTerrainData, vTextureCoord);
+				vec4 textureColor = texture2D(uRockTexture, vTextureCoord) * data.g + vec4(0.0, 0.0, 0.6, 1.0) * data.b + texture2D(uSnowTexture, vTextureCoord) * (1.0 - data.g - data.b);
+				if(uUseLighting == 1) {
+					// compute lighting
+					vec3 lightDirection = normalize(lightLocation - vPosition);
+					vec3 lightWeighting = max(dot(computeNormal(), lightDirection), 0.0) * diffuseColor + ambientColor;
+
+					gl_FragColor = vec4(textureColor.rgb * lightWeighting, textureColor.a);
+				}
+				else {
+					gl_FragColor = vec4(textureColor.rgb, textureColor.a);
+				}
+			}
+		</script>
+		<script id="shader-vs" type="x-shader/x-vertex">
+			attribute vec2 aPosition;
+			attribute vec2 aTextureCoord;
+
+			uniform mat4 uMVMatrix;
+			uniform mat4 uPMatrix;
+			uniform mat3 uNMatrix;
+
+			uniform sampler2D uVertTerrainData;
+
+			varying vec2 vTextureCoord;
+			varying vec3 vPosition;
+
+			const float heightFactor = 6.0;
+
+			void main(void) {
+				vec3 changedPosition = vec3(aPosition.x, 0.0, aPosition.y);
+				vTextureCoord = aTextureCoord;
+				changedPosition.y += heightFactor * texture2D(uVertTerrainData, aTextureCoord).r;
+				vPosition = changedPosition;
+				gl_Position = uPMatrix * uMVMatrix * vec4(vPosition, 1.0);
+			}
+		</script>
+		<style>
+			@font-face
+			{
+				font-family: papyrus-external;
+				src: url(Papyrus.TTF);
+			}
+
+			html, body {
+				margin: 0px;
+				overflow: hidden;
+				background-color: black;
+			}
+
+			#config {
+				position: absolute;
+				top: 10px;
+				left: 20px;
+				font-family: "Comic Sans MS";
+				color: white;
+			}
+
+			#loading {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				font-family: papyrus-external;
+				color: white;
+			}
+		</style>
+		<script src="webgl-utils.js"></script>
+		<script src="gl-matrix-min.js"></script>
+		<script src="webgl_helpers.js"></script>
+		<script src="mp2.js"></script>
+	</head>
+	<!-- maps from http://www.virtual-lands-3d.com/model-tags.html?start=0&tags=Free+3d+models -->
+	<!-- rock texture from http://www.deviantart.com/art/Seamless-Rock-Texture-A-273637565 -->
+	<!-- snow texture made by me in GIMP, couldn't you tell? -->
+	<body onload="startGL();">
+		<canvas id="mp2-canvas" width="800" height="800"></canvas>
+		<br>
+		<div id="loading">
+			<h1 id="loading-message">Loading...</h1>
+		</div>
+		<div id="config">
+			<p id="fps-counter">FPS:</p>
+			<p id="resolution">0x0</p>
+			<ul>
+				<li>W/S: Pitch down/up</li>
+				<li>Q/E: Roll left/right</li>
+				<li>A/D: Yaw left/right</li>
+				<li>L: Toggle lighting</li>
+				<li>Alt+F4: Change font to Helvetica</li>
+			</ul>
+		</div>
+	</body>
+</html>
