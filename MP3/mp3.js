@@ -20,8 +20,8 @@ function initShaders() {
     standardProgram.vertexNormalAttribute = gl.getAttribLocation(standardProgram, "aVertexNormal");
     gl.enableVertexAttribArray(standardProgram.vertexNormalAttribute);
 
-    standardProgram.textureCoordAttribute = gl.getAttribLocation(standardProgram, "aTextureCoord");
-    gl.enableVertexAttribArray(standardProgram.textureCoordAttribute);
+    standardProgram.vertexTextureCoordAttribute = gl.getAttribLocation(standardProgram, "aTextureCoord");
+    gl.enableVertexAttribArray(standardProgram.vertexTextureCoordAttribute);
 
     standardProgram.pMatrixUniform = gl.getUniformLocation(standardProgram, "uPMatrix");
     standardProgram.mvMatrixUniform = gl.getUniformLocation(standardProgram, "uMVMatrix");
